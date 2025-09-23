@@ -1,52 +1,47 @@
 # app/model_runner.py
-# Uses the repo's CLI:  python -m indextts.infer "<TEXT>" --voice <ref.wav> --model_dir ... --config ... --output out.wav
-import os
-import subprocess
-import tempfile
-import shlex
+import os, shlex, subprocess, tempfile
 from pathlib import Path
 
-# Where you vendored the repo and weights
 REPO_ROOT = Path("/app/index-tts")
-MODEL_DIR = Path("/app/index-tts/checkpoints")
+MODEL_DIR = Path(os.getenv("MODEL_DIR", "/app/index-tts/checkpoints"))
+INFER_MODULE = os.getenv("INFER_MODULE", "indextts.infer_v2")  # v2 entry
 
-# Optional: override which module to call (default from README)
-INFER_MODULE = os.getenv("INFER_MODULE", "indextts.infer_v2")
+def _require(path: Path, desc: str):
+    if not path.exists():
+        raise FileNotFoundError(f"Missing {desc}: {path}")
 
 def load() -> None:
-    _require(REPO_ROOT / "indextts" / "infer_v2.py", "indextts/infer_v2.py")  # <— change this
+    """Validate repo + checkpoints exist."""
+    _require(REPO_ROOT / "indextts" / "infer_v2.py", "indextts/infer_v2.py")
     _require(MODEL_DIR, "MODEL_DIR (checkpoints directory)")
     _require(MODEL_DIR / "config.yaml", "config.yaml in checkpoints")
-    expected_any = [MODEL_DIR / "gpt.pth", MODEL_DIR / "s2mel.pth", MODEL_DIR / "bigvgan_generator.pth", MODEL_DIR / "dvae.pth"]
-    if not any(p.exists() for p in expected_any):
-        print("[model_runner] Heads-up: weights present check is heuristic; continuing…", flush=True)
-
+    # Heuristic heads-up
+    maybe = [MODEL_DIR / "gpt.pth", MODEL_DIR / "s2mel.pth"]
+    if not all(p.exists() for p in maybe):
+        print("[model_runner] Heads-up: gpt.pth / s2mel.pth not both found; continuing…", flush=True)
 
 def _build_cli(text: str, out_wav: str, ref_audio: str | None) -> list[str]:
-    """Build the exact CLI the README documents."""
     args = [
         "python3", "-m", INFER_MODULE,
-        text,  # positional (not --text)
+        text,                               # positional
         "--model_dir", str(MODEL_DIR),
         "--config", str(MODEL_DIR / "config.yaml"),
         "--output", out_wav,
     ]
     if ref_audio:
         args += ["--ref", ref_audio]
-    # Log the command for debugging
     print("[INDEXTTS CMD]", shlex.join(args), flush=True)
     return args
 
 def synthesize_to_wav_bytes(
     text: str,
     ref_audio_path: str | None = None,
-    emotion: str | None = None,              # kept for API compatibility (unused by CLI)
-    target_duration_s: float | None = None,  # kept for API compatibility (unused by CLI)
+    emotion: str | None = None,              # unused by CLI; kept for API compat
+    target_duration_s: float | None = None,  # unused by CLI
 ) -> bytes:
     load()
     with tempfile.TemporaryDirectory() as td:
         out_wav = str(Path(td) / "out.wav")
         cmd = _build_cli(text, out_wav, ref_audio_path)
-        # If the CLI supports emotion/duration in the future, add flags here.
         subprocess.run(cmd, check=True)
         return Path(out_wav).read_bytes()

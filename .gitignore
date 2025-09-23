@@ -1,5 +1,9 @@
-# .dockerignore
 .git
-__pycache__/
-*.pyc
-# DO NOT ignore checkpoints or *.pth
+**/__pycache__/
+**/*.pyc
+index-tts/.git
+index-tts/.github
+index-tts/.cache
+index-tts/checkpoints/.cache
+index-tts/checkpoints/**/*.lock
+index-tts/checkpoints/**/download/**
