@@ -14,6 +14,8 @@ RUN pip install -U pip && pip install --no-cache-dir -r requirements.txt
 # --- Copy code ---
 # 1) copy the repo code (without heavy checkpoints)
 COPY index-tts /app/index-tts
+RUN pip install --no-cache-dir -e /app/index-tts
+
 # 2) ensure checkpoints are included even if .dockerignore later changes
 #    (safe even if they were already copied above)
 COPY index-tts/checkpoints /app/index-tts/checkpoints

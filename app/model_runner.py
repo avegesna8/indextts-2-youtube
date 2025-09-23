@@ -11,27 +11,16 @@ REPO_ROOT = Path("/app/index-tts")
 MODEL_DIR = Path("/app/index-tts/checkpoints")
 
 # Optional: override which module to call (default from README)
-INFER_MODULE = os.getenv("INFER_MODULE", "indextts.infer")
-
-def _require(path: Path, desc: str):
-    if not path.exists():
-        raise FileNotFoundError(f"Missing {desc}: {path}")
+INFER_MODULE = os.getenv("INFER_MODULE", "indextts.infer_v2")
 
 def load() -> None:
-    """Cold start validation: make sure the repo & checkpoints exist."""
-    _require(REPO_ROOT / "indextts" / "infer.py", "indextts/infer.py")
+    _require(REPO_ROOT / "indextts" / "infer_v2.py", "indextts/infer_v2.py")  # <— change this
     _require(MODEL_DIR, "MODEL_DIR (checkpoints directory)")
     _require(MODEL_DIR / "config.yaml", "config.yaml in checkpoints")
-    # Many repos also need bpe/vocab/weights; fail fast if obviously missing
-    expected_any = [
-        MODEL_DIR / "gpt.pth",
-        MODEL_DIR / "bigvgan_generator.pth",
-        MODEL_DIR / "dvae.pth",
-    ]
+    expected_any = [MODEL_DIR / "gpt.pth", MODEL_DIR / "s2mel.pth", MODEL_DIR / "bigvgan_generator.pth", MODEL_DIR / "dvae.pth"]
     if not any(p.exists() for p in expected_any):
-        # Not fatal if you have alternative filenames, but warn loudly
-        print("[model_runner] Heads-up: did not see gpt/bigvgan/dvae .pth files in checkpoints. "
-              "If your clone uses different names, that's OK.", flush=True)
+        print("[model_runner] Heads-up: weights present check is heuristic; continuing…", flush=True)
+
 
 def _build_cli(text: str, out_wav: str, ref_audio: str | None) -> list[str]:
     """Build the exact CLI the README documents."""
@@ -43,7 +32,7 @@ def _build_cli(text: str, out_wav: str, ref_audio: str | None) -> list[str]:
         "--output", out_wav,
     ]
     if ref_audio:
-        args += ["--voice", ref_audio]
+        args += ["--ref", ref_audio]
     # Log the command for debugging
     print("[INDEXTTS CMD]", shlex.join(args), flush=True)
     return args
