@@ -2,7 +2,7 @@
 from runpod import serverless
 import os, base64, tempfile, time, traceback
 
-DEFAULT_MODE = os.getenv("DEFAULT_MODE", "echo").lower()
+DEFAULT_MODE = os.getenv("DEFAULT_MODE", "tts").lower()
 
 _runner = None
 def _lazy_runner():
