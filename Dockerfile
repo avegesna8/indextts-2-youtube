@@ -13,8 +13,9 @@ COPY requirements.txt .
 RUN pip install -U pip && pip install --no-cache-dir -r requirements.txt
 
 # Clone inference code (shallow to speed up)
-RUN git clone --depth=1 https://github.com/IndexTeam/index-tts.git /app/index-tts
-
+RUN git clone --depth=1 https://github.com/IndexTeam/index-tts.git /app/index-tts \
+ || git clone --depth=1 https://git::@github.com/IndexTeam/index-tts.git /app/index-tts
+ 
 # Copy your serverless app
 COPY . .
 
