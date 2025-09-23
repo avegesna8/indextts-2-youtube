@@ -1,26 +1,23 @@
-FROM nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04
+FROM python:3.10-slim
 
-# System deps
+# Small set of system deps (git for cloning; libsndfile if you use soundfile; ffmpeg optional)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    git git-lfs ffmpeg libsndfile1 python3 python3-pip \
+    git git-lfs libsndfile1 ffmpeg \
  && rm -rf /var/lib/apt/lists/* \
  && git lfs install
 
-# Python
-RUN python3 -m pip install --upgrade pip
-
 WORKDIR /app
 
-# Install your Python deps first (cacheable)
+# Install Python deps (torch CUDA wheels via cu121 index)
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install -U pip && pip install --no-cache-dir -r requirements.txt
 
-# Clone the IndexTTS repo with inference code
-RUN git clone https://github.com/IndexTeam/index-tts.git /app/index-tts
+# Clone inference code (shallow to speed up)
+RUN git clone --depth=1 https://github.com/IndexTeam/index-tts.git /app/index-tts
 
-# Copy your app last
+# Copy your serverless app
 COPY . .
 
 # Serverless entry
 ENV RUNPOD_HANDLER=handler.py
-CMD ["python3", "-m", "runpod.serverless"]
+CMD ["python", "-m", "runpod.serverless"]
