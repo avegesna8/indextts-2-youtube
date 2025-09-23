@@ -18,5 +18,5 @@ COPY index-tts /app/index-tts
 COPY . .
 
 # RunPod entry
-ENV RUNPOD_HANDLER=handler.py
-CMD ["python", "-m", "runpod.serverless"]
+ENV PYTHONPATH=/app
+CMD ["python", "handler.py"]
