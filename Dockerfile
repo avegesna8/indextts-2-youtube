@@ -1,20 +1,26 @@
-FROM python:3.10-slim
+FROM nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04
 
-# System tools some pip installs need (git). Keep it tiny.
-RUN apt-get update && apt-get install -y --no-install-recommends git \
-    && rm -rf /var/lib/apt/lists/*
+# System deps
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git git-lfs ffmpeg libsndfile1 python3 python3-pip \
+ && rm -rf /var/lib/apt/lists/* \
+ && git lfs install
+
+# Python
+RUN python3 -m pip install --upgrade pip
 
 WORKDIR /app
 
-# Install Python deps (keep these pure-Python to avoid system libs)
+# Install your Python deps first (cacheable)
 COPY requirements.txt .
-RUN pip install -U pip && pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy app code
+# Clone the IndexTTS repo with inference code
+RUN git clone https://github.com/IndexTeam/index-tts.git /app/index-tts
+
+# Copy your app last
 COPY . .
 
-# Tell RunPod which handler to run (your handler.py in repo root)
+# Serverless entry
 ENV RUNPOD_HANDLER=handler.py
-
-# Start the serverless runtime
-CMD ["python", "-m", "runpod.serverless"]
+CMD ["python3", "-m", "runpod.serverless"]
