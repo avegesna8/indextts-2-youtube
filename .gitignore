@@ -1,5 +1,5 @@
+# .dockerignore
+.git
 __pycache__/
 *.pyc
-*.pyo
-.env
-models/
+# DO NOT ignore checkpoints or *.pth

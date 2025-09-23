@@ -8,7 +8,7 @@ from pathlib import Path
 
 # Where you vendored the repo and weights
 REPO_ROOT = Path("/app/index-tts")
-MODEL_DIR = Path(os.getenv("MODEL_DIR", "/app/index-tts/checkpoints"))
+MODEL_DIR = Path("/app/index-tts/checkpoints")
 
 # Optional: override which module to call (default from README)
 INFER_MODULE = os.getenv("INFER_MODULE", "indextts.infer")
