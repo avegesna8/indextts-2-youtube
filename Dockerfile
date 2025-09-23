@@ -11,21 +11,27 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install -U pip && pip install --no-cache-dir -r requirements.txt
 
-# --- Copy code ---
-# 1) copy the repo code (without heavy checkpoints)
+# Your code (repo + install as package)
 COPY index-tts /app/index-tts
 RUN pip install --no-cache-dir -e /app/index-tts
 
-# 2) ensure checkpoints are included even if .dockerignore later changes
-#    (safe even if they were already copied above)
-COPY index-tts/checkpoints /app/index-tts/checkpoints
-# 3) your app code (handler.py, app/)
+# --- Download model weights (IndexTTS-2) ---
+# If the repo is gated, uncomment ARG/ENV + login:
+# ARG HF_TOKEN
+# ENV HUGGINGFACE_HUB_TOKEN=${HF_TOKEN}
+RUN mkdir -p /app/index-tts/checkpoints && \
+    pip install --no-cache-dir huggingface_hub && \
+    huggingface-cli download IndexTeam/IndexTTS-2 \
+      --local-dir /app/index-tts/checkpoints \
+      --local-dir-use-symlinks False
+
+# App code last (handler.py, app/)
 COPY . .
 
 # Runtime env
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app:/app/index-tts
-# set to "echo" for quick sanity, "tts" for real synthesis
+ENV MODEL_DIR=/app/index-tts/checkpoints
 ENV DEFAULT_MODE=tts
 
 CMD ["python", "handler.py"]
