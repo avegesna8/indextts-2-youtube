@@ -8,14 +8,14 @@ _runner = None
 def _lazy_runner():
     global _runner
     if _runner is None:
-        from app.model_runner import load, synthesize_to_wav_bytes
-        load()  # sanity check weights/config exist
-        _runner = synthesize_to_wav_bytes
+        from app.model_runner import synthesize_to_wav_bytes_api
+        _runner = synthesize_to_wav_bytes_api
     return _runner
 
 def _ok(data, extra=None):
     out = {"ok": True, **data}
-    if extra: out.update(extra)
+    if extra:
+        out.update(extra)
     return out
 
 def _err(msg, code="INTERNAL", detail=None):
@@ -32,14 +32,16 @@ def handler(event: dict):
 
     # ---- Echo path (fast, no weights needed) ----
     if mode == "echo":
-        return _ok({"echo": text, "message": f"You said: {text}"},
-                   {"mode": "echo", "t_ms": int((time.time()-t0)*1000)})
+        return _ok(
+            {"echo": text, "message": f"You said: {text}"},
+            {"mode": "echo", "t_ms": int((time.time() - t0) * 1000)},
+        )
 
     # ---- TTS path ----
     try:
         synth = _lazy_runner()
 
-        ref_b64  = body.get("ref_audio_b64")
+        ref_b64 = body.get("ref_audio_b64")
         ref_path = None
         if ref_b64:
             tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
@@ -51,14 +53,17 @@ def handler(event: dict):
             text=text,
             ref_audio_path=ref_path,
             emotion=body.get("emotion"),
-            target_duration_s=body.get("duration") or body.get("target_duration_s")
+            target_duration_s=body.get("duration") or body.get("target_duration_s"),
         )
 
-        return _ok({
-            "format": "wav",
-            "sr": 22050,
-            "audio_base64": base64.b64encode(wav_bytes).decode("utf-8")
-        }, {"mode": "tts", "t_ms": int((time.time()-t0)*1000)})
+        return _ok(
+            {
+                "format": "wav",
+                "sr": 22050,
+                "audio_base64": base64.b64encode(wav_bytes).decode("utf-8"),
+            },
+            {"mode": "tts", "t_ms": int((time.time() - t0) * 1000)},
+        )
 
     except Exception as e:
         tb = traceback.format_exc()

@@ -137,3 +137,40 @@ def synthesize_to_wav_bytes(
         size = os.path.getsize(out_wav) if os.path.exists(out_wav) else -1
         _log("SYNTH_DONE", out=out_wav, size=size)
         return Path(out_wav).read_bytes()
+
+# app/model_runner.py
+from indextts.infer_v2 import IndexTTS2
+
+def synthesize_to_wav_bytes_api(
+    text: str,
+    ref_audio_path: Optional[str] = None,
+    emotion: Optional[str] = None,
+    target_duration_s: Optional[float] = None,
+) -> bytes:
+    load()
+    _log("SYNTH_START_API", text_len=len(text), ref=ref_audio_path,
+         emotion=emotion, target_duration_s=target_duration_s)
+
+    ref = ref_audio_path or _default_ref()
+    if ref:
+        ref = _to_clean_wav(ref)
+
+    # init once per call (you could cache this if you want)
+    tts = IndexTTS2(
+        cfg_path=str(MODEL_DIR / "config.yaml"),
+        model_dir=str(MODEL_DIR),
+        use_fp16=False,
+        use_cuda_kernel=False,
+        use_deepspeed=False,
+    )
+
+    with tempfile.TemporaryDirectory() as td:
+        out_path = str(Path(td) / "gen.wav")
+        tts.infer(
+            spk_audio_prompt=ref,   # <--- key change here
+            text=text,
+            output_path=out_path,
+            verbose=True,
+        )
+        _log("SYNTH_DONE_API", out=out_path, size=os.path.getsize(out_path))
+        return Path(out_path).read_bytes()
