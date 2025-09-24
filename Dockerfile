@@ -25,6 +25,11 @@ RUN mkdir -p /app/index-tts/checkpoints && \
       --local-dir /app/index-tts/checkpoints \
       --local-dir-use-symlinks False
 
+# Dockerfile (add near the bottom, before COPY . . if you want)
+RUN mkdir -p /app/app/assets && \
+    ffmpeg -hide_banner -loglevel error -f lavfi -i sine=frequency=440:duration=1 \
+      -ar 22050 -ac 1 -sample_fmt s16 /app/app/assets/ref.wav     
+
 # App code last (handler.py, app/)
 COPY . .
 

@@ -8,6 +8,12 @@ REPO_ROOT = Path("/app/index-tts")
 MODEL_DIR = Path(os.getenv("MODEL_DIR", "/app/index-tts/checkpoints"))
 INFER_MODULE = os.getenv("INFER_MODULE", "indextts.infer_v2")  # v2 entry
 
+REF_FLAG = os.getenv("INFER_REF_FLAG", "--voice")
+FALLBACK_REF = Path("/app/app/assets/ref.wav")
+
+def _default_ref() -> Optional[str]:
+    return str(FALLBACK_REF) if FALLBACK_REF.exists() else None
+
 def _log(msg: str, **kv):
     """Uniform, flushy logger."""
     blob = {"msg": msg, **kv}
@@ -55,19 +61,6 @@ def load() -> None:
         p = MODEL_DIR / fname
         _log("CHECK_FILE", file=fname, exists=p.exists(), size=(p.stat().st_size if p.exists() else None))
 
-def _default_ref() -> Optional[str]:
-    for p in [
-        REPO_ROOT / "examples" / "voice_01.wav",
-        REPO_ROOT / "examples" / "voice_02.wav",
-        REPO_ROOT / "examples" / "voice_03.wav",
-        REPO_ROOT / "test_data" / "input.wav",
-    ]:
-        if p.exists():
-            _log("DEFAULT_REF_FOUND", path=str(p))
-            return str(p)
-    _log("DEFAULT_REF_NOT_FOUND")
-    return None
-
 def _probe_audio(path: str):
     """Log what this file looks like using soundfile and ffprobe."""
     info = {}
@@ -91,20 +84,13 @@ def _probe_audio(path: str):
             _log("FFPROBE_FAILED", path=path, error=repr(e))
 
 def _to_clean_wav(src_path: str) -> str:
-    """
-    Transcode any input to a safe PCM16 mono 22050 Hz WAV so librosa/libsndfile/audioread are happy.
-    """
+    # normalize any input to PCM16/22.05k/mono so librosa/soundfile are happy
+    import tempfile, os
     td = tempfile.mkdtemp()
     dst = str(Path(td) / "ref_clean.wav")
-    cmd = ["ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
-           "-i", src_path, "-ac", "1", "-ar", "22050", "-sample_fmt", "s16", dst]
-    _log("FFMPEG_TRANSCODE", cmd=" ".join(shlex.quote(x) for x in cmd))
-    res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-    if res.returncode != 0:
-        _log("FFMPEG_TRANSCODE_FAILED", rc=res.returncode, stderr=res.stderr[-1000:])
-        raise RuntimeError(f"ffmpeg failed: {res.stderr}")
-    _log("FFMPEG_TRANSCODE_OK", dst=dst, size=os.path.getsize(dst))
-    _probe_audio(dst)
+    cmd = ["ffmpeg","-y","-hide_banner","-loglevel","error",
+           "-i", src_path, "-ac","1","-ar","22050","-sample_fmt","s16", dst]
+    subprocess.run(cmd, check=True)
     return dst
 
 def _build_cli(text: str, out_wav: str, ref_audio: Optional[str]) -> list[str]:
@@ -115,20 +101,14 @@ def _build_cli(text: str, out_wav: str, ref_audio: Optional[str]) -> list[str]:
         "--config", str(MODEL_DIR / "config.yaml"),
         "--output", out_wav,
     ]
-    # choose a ref (payload -> default sample), then normalize it
     ref = ref_audio or _default_ref()
     if ref:
-        _log("REF_INPUT", ref=ref)
-        try:
-            _probe_audio(ref)  # log what we got
-            clean = _to_clean_wav(ref)
-            args += ["--ref", clean]
-        except Exception as e:
-            _log("REF_NORMALIZE_FAILED", error=repr(e))
+        clean = _to_clean_wav(ref)
+        args += [REF_FLAG, clean]     # v2 expects --voice
     else:
-        _log("NO_REF", note="continuing without reference; model may error")
+        print("[model_runner] No reference provided; v2 may fail.", flush=True)
 
-    _log("CLI", cmd=shlex.join(args), cwd=str(REPO_ROOT))
+    print("[INDEXTTS CMD]", shlex.join(args), "cwd=", REPO_ROOT, flush=True)
     return args
 
 def synthesize_to_wav_bytes(
