@@ -1,7 +1,8 @@
 runpod
 numpy
 soundfile
-
+librosa
+audioread
 huggingface_hub
 omegaconf
 hydra-core
