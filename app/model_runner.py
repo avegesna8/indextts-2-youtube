@@ -43,5 +43,6 @@ def synthesize_to_wav_bytes(
     with tempfile.TemporaryDirectory() as td:
         out_wav = str(Path(td) / "out.wav")
         cmd = _build_cli(text, out_wav, ref_audio_path)
-        subprocess.run(cmd, check=True)
+        # 👇 IMPORTANT: run from the repo root so "checkpoints/..." exists
+        subprocess.run(cmd, check=True, cwd=str(REPO_ROOT))
         return Path(out_wav).read_bytes()
