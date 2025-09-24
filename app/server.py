@@ -3,7 +3,7 @@
 import base64
 from fastapi import FastAPI, UploadFile, Form
 from fastapi.responses import JSONResponse
-from app.model_runner import load, synthesize_to_wav_bytes
+from app.model_runner import load, synthesize_to_wav_bytes_api
 
 app = FastAPI(title="IndexTTS Local API", version="0.1.0")
 
@@ -28,7 +28,7 @@ async def tts(
             f.write(data)
         ref_path = tmp_path
 
-    wav_bytes = synthesize_to_wav_bytes(text=text, ref_audio_path=ref_path)
+    wav_bytes = synthesize_to_wav_bytes_api(text=text, ref_audio_path=ref_path)
     return JSONResponse({
         "format": "wav",
         "sr": 22050,
