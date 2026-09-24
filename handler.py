@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import tempfile
 import threading
+import traceback
 import wave
 
 MODEL_VERSION = "2.5"
@@ -37,11 +38,22 @@ def options(body):
                 use_random=False, verbose=False)
 
 
+def model_directory():
+    root = Path(os.getenv("INDEXTTS25_MODEL_DIR") or os.getenv("MODEL_DIR", "/models/indextts25"))
+    # Existing RunPod endpoint variables survive image upgrades.
+    if str(root) in ("/app/index-tts/checkpoints", "/models/indextts2"):
+        print(f"Ignoring legacy IndexTTS-2 MODEL_DIR={root}; using bundled 2.5 weights.", flush=True)
+        root = Path("/models/indextts25")
+    if not (root / "config.yaml").is_file():
+        raise FileNotFoundError(f"Missing {root / 'config.yaml'}. Set INDEXTTS25_MODEL_DIR=/models/indextts25; check endpoint environment and volume mounts.")
+    return str(root)
+
+
 def get_model():
     global _model
     if _model is None:
         from indextts.infer_v2_5 import IndexTTS2
-        root = os.getenv("MODEL_DIR", "/models/indextts25")
+        root = model_directory()
         _model = IndexTTS2(cfg_path=f"{root}/config.yaml", model_dir=root,
                           use_bf16=True, use_cuda_kernel=False, use_qwen_emo=True)
     return _model
@@ -77,6 +89,7 @@ def handler(event):
         return {"ok": False, "error": {"code": "BAD_REQUEST", "message": str(exc)}}
     except Exception as exc:
         print(f"IndexTTS-2.5 synthesis failed: {type(exc).__name__}", flush=True)
+        traceback.print_exc()
         return {"ok": False, "error": {"code": "SYNTH_ERROR", "message": "Synthesis failed; inspect worker logs."}}
 
 
