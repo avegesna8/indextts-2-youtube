@@ -11,6 +11,15 @@ w = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(w)
 
 class WorkerTests(unittest.TestCase):
+    def test_legacy_model_path_uses_bundled_weights(self):
+        with patch.dict(w.os.environ, {"MODEL_DIR": "/app/index-tts/checkpoints", "INDEXTTS25_MODEL_DIR": ""}), patch.object(w.Path, "is_file", return_value=True):
+            self.assertEqual(w.model_directory(), "/models/indextts25")
+
+    def test_custom_missing_path_is_identified(self):
+        with patch.dict(w.os.environ, {"INDEXTTS25_MODEL_DIR": "/missing/custom"}), patch.object(w.Path, "is_file", return_value=False):
+            with self.assertRaisesRegex(FileNotFoundError, "/missing/custom/config.yaml"):
+                w.model_directory()
+
     def test_controls_and_cleanup(self):
         paths = []
         def infer(**args):
